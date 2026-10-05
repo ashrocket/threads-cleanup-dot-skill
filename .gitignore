@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+.state/
+private-threads-state/
+*.zip
+.DS_Store
