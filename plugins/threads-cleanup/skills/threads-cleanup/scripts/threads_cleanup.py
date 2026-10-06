@@ -179,7 +179,6 @@ class Cleanup:
                 links = card.locator("a").filter(has=self.page.locator("time")).evaluate_all("els => els.map(e => e.getAttribute('href'))")
                 if not links or post_path(links[0]) != target or more.count() != 1:
                     raise RuntimeError("Post card is ambiguous; no action taken")
-                more.scroll_into_view_if_needed()
                 more.click()
                 self.page.get_by_role("menuitem").first.wait_for()
                 return [x.strip() for x in self.page.get_by_role("menuitem").all_text_contents()]
@@ -378,9 +377,12 @@ def main():
                 phase = pending.get("phase", "replies") if pending else "replies"
                 feed = "/@" + args.account + ("/replies" if phase == "replies" else "")
                 runner.navigate(feed)
-                runner.page.wait_for_timeout(2000)
-                paths = runner.candidates(phase)
                 body = runner.page.get_by_role("region", name="Column body")
+                try:
+                    body.get_by_role("status", name="Loading...").first.wait_for(state="hidden", timeout=30000)
+                except Exception:
+                    pass
+                paths = runner.candidates(phase)
                 print(json.dumps({"pending": pending, "phase": phase, "visible_paths": paths[:12], "pending_visible": bool(pending and pending["target"] in paths), "empty_feed": runner.confirmed_empty_feed(phase), "onboarding": body.get_by_text("Finish your profile", exact=True).count(), "composer": body.get_by_text("What's new?", exact=True).count(), "loading": body.get_by_role("status", name="Loading...").count()}), flush=True)
             elif args.login:
                 splash = ("<!doctype html><meta charset=utf-8><title>THREADS CLEANUP - SIGN IN HERE</title>"
