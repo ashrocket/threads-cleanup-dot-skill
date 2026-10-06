@@ -23,7 +23,7 @@ class CleanupTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.pw = sync_playwright().start()
-        cls.browser = cls.pw.chromium.launch(channel="chrome", headless=True)
+        cls.browser = cls.pw.chromium.launch(headless=True)
 
     @classmethod
     def tearDownClass(cls):
@@ -98,7 +98,7 @@ class CleanupTests(unittest.TestCase):
         self.assertFalse(self.saved)
         self.assertEqual(self.delete_clicks, 0)
 
-    def test_pending_reply_verified_from_loaded_feed(self):
+    def test_pending_reply_verified_from_permalink(self):
         self.deleted.add("/@demo_user/post/R1")
         self.runner.state["pending"] = {"target": "/@demo_user/post/R1", "operation": "delete", "phase": "replies"}
         self.runner.save()
@@ -106,13 +106,45 @@ class CleanupTests(unittest.TestCase):
         self.assertEqual(self.delete_clicks, 0)
         self.assertIn("delete:/@demo_user/post/R1", self.runner.state["done"])
 
-    def test_pending_post_verified_from_loaded_feed(self):
+    def test_pending_post_verified_from_permalink(self):
         self.deleted.add("/@demo_user/post/P1")
         self.runner.state["pending"] = {"target": "/@demo_user/post/P1", "operation": "delete", "phase": "posts"}
         self.runner.save()
         self.assertTrue(self.runner.finish_pending())
         self.assertEqual(self.delete_clicks, 0)
         self.assertIn("delete:/@demo_user/post/P1", self.runner.state["done"])
+
+    def test_deleted_reply_redirect_proves_pending_deletion(self):
+        self.deleted.add("/@demo_user/post/R1")
+
+        def redirect(route):
+            route.fulfill(content_type="text/html", body='''
+                <a href="/@demo_user" aria-label="Profile">Profile</a>
+                <section role="region" aria-label="Column body"><div role="status" aria-label="Loading..."></div></section>
+                <script>setTimeout(() => location.replace('/@demo_user'), 300)</script>''')
+
+        self.context.route(BASE + "/@demo_user/post/R1", redirect)
+        self.runner.state["pending"] = {"target": "/@demo_user/post/R1", "operation": "delete", "phase": "replies"}
+        self.runner.save()
+        self.assertTrue(self.runner.finish_pending())
+        self.assertEqual(self.delete_clicks, 0)
+        self.assertIsNone(self.runner.state["pending"])
+
+    def test_late_live_reply_is_not_mistaken_for_deleted(self):
+        def late_reply(route):
+            route.fulfill(content_type="text/html", body='''
+                <a href="/@demo_user" aria-label="Profile">Profile</a>
+                <section role="region" aria-label="Column body">
+                    <p>Post unavailable</p><div role="status" aria-label="Loading..."></div>
+                    <template><a href="/@demo_user/post/R1"><time>Today</time></a></template>
+                </section>
+                <script>setTimeout(() => {
+                    document.querySelector('[role=status]').replaceWith(document.querySelector('template').content)
+                }, 1500)</script>''')
+
+        self.context.route(BASE + "/@demo_user/post/R1", late_reply)
+        self.assertFalse(self.runner.verify("/@demo_user/post/R1", "delete", "replies"))
+        self.assertEqual(self.delete_clicks, 0)
 
     def test_dry_run_does_not_mutate(self):
         self.args.execute = False

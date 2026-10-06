@@ -185,13 +185,33 @@ class Cleanup:
         raise RuntimeError("No unambiguous More menu for target")
 
     def absent_post(self, target):
-        self.navigate(target)
-        # A loaded, explicit unavailable state is required, not a loading skeleton.
+        from playwright.sync_api import Error as PlaywrightError
+        # Feeds are virtualized and may still show a deleted card. Only the
+        # target's own URL can prove that this exact post is gone.
         try:
-            self.page.get_by_text(UNAVAILABLE).first.wait_for(timeout=10000)
-            return not self.page.get_by_role("region", name="Column body").locator(f'a[href="{target}"]').filter(has=self.page.locator("time")).count()
-        except Exception:
-            return False
+            self.page.goto(BASE + target, wait_until="commit")
+        except PlaywrightError as error:
+            if "ERR_ABORTED" not in str(error):
+                raise
+        card = self.page.locator(f'a[href="{target}"]').filter(has=self.page.locator("time"))
+        loading = self.page.get_by_role("status", name="Loading...")
+        stable = 0
+        for attempt in range(40):
+            self.page.wait_for_timeout(500)
+            try:
+                if card.count():
+                    return False
+                path = urllib.parse.urlsplit(self.page.url).path.rstrip("/")
+                gone = (path == "/@" + self.args.account or
+                        (path == target and self.page.get_by_text(UNAVAILABLE).count() > 0 and not loading.count()))
+            except PlaywrightError:
+                gone = False  # A navigation is still in progress.
+            stable = stable + 1 if gone else 0
+            # Give late-rendering cards time to replace unavailable placeholders.
+            if stable >= 2 and attempt >= 5:
+                self.account_guard()
+                return True
+        return False
 
     def confirmed_empty_feed(self, phase):
         body = self.page.get_by_role("region", name="Column body")
@@ -209,25 +229,6 @@ class Cleanup:
 
     def verify(self, target, operation, phase=None):
         if operation == "delete":
-            if phase in {"posts", "replies"}:
-                feed = "/@" + self.args.account + ("/replies" if phase == "replies" else "")
-                self.navigate(feed)
-                body = self.page.get_by_role("region", name="Column body")
-                try:
-                    body.locator("a").filter(has=self.page.locator("time")).first.wait_for(timeout=12000)
-                except Exception:
-                    # The last deletion leaves no timestamp links. Threads may
-                    # redirect a deleted URL to the profile, so confirm the
-                    # loaded empty feed before trying the direct URL.
-                    if self.confirmed_empty_feed(phase):
-                        self.page.wait_for_timeout(2000)
-                        if self.confirmed_empty_feed(phase):
-                            return True
-                    return self.absent_post(target)
-                # The loop takes the first post/reply in its feed. A loaded feed
-                # showing later entries without that URL confirms removal.
-                if target not in self.candidates(phase):
-                    return True
             return self.absent_post(target)
         self.navigate(target)
         labels = self.open_menu(target)
@@ -261,6 +262,10 @@ class Cleanup:
             self.page.get_by_role("heading", name="Delete post?", exact=True).wait_for()
             self.account_guard()
             self.page.get_by_role("button", name="Delete", exact=True).click()
+            self.page.get_by_role("heading", name="Delete post?", exact=True).wait_for(state="hidden")
+            # Let the app finish removing the exact card before navigating away.
+            # A hidden confirmation dialog alone can precede the mutation.
+            self.page.locator(f'a[href="{target}"]').filter(has=self.page.locator("time")).first.wait_for(state="detached", timeout=20000)
         if not self.verify(target, operation, phase):
             raise RuntimeError("Action outcome unverified; pending checkpoint retained")
 

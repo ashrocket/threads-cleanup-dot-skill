@@ -18,6 +18,7 @@ Start a new Codex chat after installation so its skill inventory refreshes. Alte
 See the skill's setup and recovery instructions before running it. The script requires Python, Chrome, Playwright, and a TypeSafe API key. It previews by default, verifies the signed-in username, records pending actions before clicking, and stops on uncertain results.
 
 The example browser tests use simulated Threads pages and make no real account changes.
+They use Playwright's bundled Chromium; install it with `.venv/bin/python -m playwright install chromium` before running `test_cleanup.py`.
 
 To give this to your dot, install and enable the plugin or skill in ChatGPT, connect your computer if you want the script to run locally, and send a request like:
 
