@@ -293,12 +293,17 @@ class Cleanup:
                 else:
                     self.navigate(feed)
                 for scroll in range(8):
-                    show = self.page.get_by_role("region", name="Column body").get_by_role("button", name="Show", exact=True)
-                    for button in show.all():
-                        button.click()
                     candidates = self.candidates(phase)
                     if candidates:
                         break
+                    show = self.page.get_by_role("region", name="Column body").get_by_role("button", name="Show", exact=True)
+                    for button in show.all():
+                        try:
+                            button.click(timeout=4000)
+                        except Exception:
+                            # Feed cards re-render while scrolling. Retry on
+                            # the next pass; a detached Show is not an action.
+                            pass
                     self.page.mouse.wheel(0, 650)
                     self.page.wait_for_timeout(1200)
                 if not candidates:
