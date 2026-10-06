@@ -1,0 +1,31 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "threads-cleanup",
+  "version": "0.2.0",
+  "description": "Checkpointed cleanup of an account owner's Threads posts, replies, and saved items.",
+  "author": {
+    "name": "Ashley Raiteri",
+    "url": "https://github.com/ashrocket"
+  },
+  "homepage": "https://github.com/ashrocket/threads-cleanup-dot-skill",
+  "repository": "https://github.com/ashrocket/threads-cleanup-dot-skill",
+  "license": "MIT",
+  "keywords": ["threads", "cleanup", "social-media"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Threads Cleanup",
+        "shortDescription": "Clear your own Threads activity with checkpoints",
+        "longDescription": "Guide an account owner through authorized removal of their Threads posts, replies, and saved items. Script mode requires a connected computer, Chrome, Python, and a TypeSafe API key.",
+        "developerName": "Ashley Raiteri",
+        "category": "Productivity",
+        "capabilities": ["Read", "Write"],
+        "websiteURL": "https://github.com/ashrocket/threads-cleanup-dot-skill",
+        "defaultPrompt": [
+          "Preview cleanup of my own Threads posts, replies, and saved items",
+          "Continue my authorized Threads cleanup from its checkpoint"
+        ]
+      }
+    }
+  }
+}

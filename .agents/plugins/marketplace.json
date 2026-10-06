@@ -1,0 +1,17 @@
+{
+  "name": "threads-cleanup-community",
+  "plugins": [
+    {
+      "name": "threads-cleanup",
+      "source": {
+        "source": "local",
+        "path": "./plugins/threads-cleanup"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
