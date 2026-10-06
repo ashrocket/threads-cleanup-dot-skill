@@ -194,13 +194,37 @@ class Cleanup:
         except Exception:
             return False
 
+    def confirmed_empty_feed(self, phase):
+        body = self.page.get_by_role("region", name="Column body")
+        if self.candidates(phase) or body.get_by_role("status", name="Loading...").count():
+            return False
+        if body.get_by_text(EMPTY).count():
+            return True
+        # Threads' own empty profile displays the composer and onboarding
+        # panel, without a textual "No threads yet" placeholder.
+        return bool(phase == "posts"
+                    and urllib.parse.urlsplit(self.page.url).path.rstrip("/") == "/@" + self.args.account
+                    and self.page.get_by_role("button", name="Edit profile", exact=True).count()
+                    and body.get_by_text("Finish your profile", exact=True).count()
+                    and body.get_by_role("button", name="Post", exact=True).count())
+
     def verify(self, target, operation, phase=None):
         if operation == "delete":
             if phase in {"posts", "replies"}:
                 feed = "/@" + self.args.account + ("/replies" if phase == "replies" else "")
                 self.navigate(feed)
                 body = self.page.get_by_role("region", name="Column body")
-                body.locator("a").filter(has=self.page.locator("time")).first.wait_for(timeout=45000)
+                try:
+                    body.locator("a").filter(has=self.page.locator("time")).first.wait_for(timeout=12000)
+                except Exception:
+                    # The last deletion leaves no timestamp links. Threads may
+                    # redirect a deleted URL to the profile, so confirm the
+                    # loaded empty feed before trying the direct URL.
+                    if self.confirmed_empty_feed(phase):
+                        self.page.wait_for_timeout(2000)
+                        if self.confirmed_empty_feed(phase):
+                            return True
+                    return self.absent_post(target)
                 # The loop takes the first post/reply in its feed. A loaded feed
                 # showing later entries without that URL confirms removal.
                 if target not in self.candidates(phase):
@@ -215,7 +239,12 @@ class Cleanup:
     def apply(self, target, operation, phase=None):
         if operation == "delete" and not own_post(target, self.args.account):
             raise RuntimeError("Refusing to delete another account's post")
-        self.navigate(target)
+        feed = "/saved/" if phase == "saved" else "/@" + self.args.account + ("/replies" if phase == "replies" else "")
+        current = urllib.parse.urlsplit(self.page.url).path.rstrip("/")
+        # The feed already contains the exact timestamp-linked card chosen by
+        # run(). Use its menu directly and save a full post-page navigation.
+        if current != feed.rstrip("/") or target not in self.candidates(phase):
+            self.navigate(target)
         labels = self.open_menu(target)
         decision = self.jev.choose(operation, labels)
         if decision == "already_unsaved":
@@ -259,7 +288,10 @@ class Cleanup:
             feed = "/saved/" if phase == "saved" else "/@" + self.args.account + ("/replies" if phase == "replies" else "")
             operation = "unsave" if phase == "saved" else "delete"
             while True:
-                self.navigate(feed)
+                if urllib.parse.urlsplit(self.page.url).path.rstrip("/") == feed.rstrip("/"):
+                    self.account_guard()
+                else:
+                    self.navigate(feed)
                 for scroll in range(8):
                     show = self.page.get_by_role("region", name="Column body").get_by_role("button", name="Show", exact=True)
                     for button in show.all():
@@ -270,8 +302,7 @@ class Cleanup:
                     self.page.mouse.wheel(0, 650)
                     self.page.wait_for_timeout(1200)
                 if not candidates:
-                    body = self.page.get_by_role("region", name="Column body")
-                    if body.get_by_text(EMPTY).count() and not body.get_by_role("status", name="Loading...").count():
+                    if self.confirmed_empty_feed(phase):
                         self.event("phase_empty", phase=phase)
                         break
                     raise RuntimeError(f"No eligible {phase} found, but an empty list was not confirmed")
@@ -342,9 +373,10 @@ def main():
                 phase = pending.get("phase", "replies") if pending else "replies"
                 feed = "/@" + args.account + ("/replies" if phase == "replies" else "")
                 runner.navigate(feed)
-                runner.page.get_by_role("region", name="Column body").locator("a").filter(has=runner.page.locator("time")).first.wait_for(timeout=45000)
+                runner.page.wait_for_timeout(2000)
                 paths = runner.candidates(phase)
-                print(json.dumps({"pending": pending, "phase": phase, "visible_paths": paths[:12], "pending_visible": bool(pending and pending["target"] in paths)}), flush=True)
+                body = runner.page.get_by_role("region", name="Column body")
+                print(json.dumps({"pending": pending, "phase": phase, "visible_paths": paths[:12], "pending_visible": bool(pending and pending["target"] in paths), "empty_feed": runner.confirmed_empty_feed(phase), "onboarding": body.get_by_text("Finish your profile", exact=True).count(), "composer": body.get_by_text("What's new?", exact=True).count(), "loading": body.get_by_role("status", name="Loading...").count()}), flush=True)
             elif args.login:
                 splash = ("<!doctype html><meta charset=utf-8><title>THREADS CLEANUP - SIGN IN HERE</title>"
                           "<body style='font:24px system-ui;padding:48px'><h1>THREADS CLEANUP - SIGN IN HERE</h1>"

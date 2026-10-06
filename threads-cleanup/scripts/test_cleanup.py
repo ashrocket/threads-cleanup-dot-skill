@@ -134,6 +134,12 @@ class CleanupTests(unittest.TestCase):
         self.page.set_content('<section role="region" aria-label="Column body"><a href="/@other/post/P0"><time>Now</time></a><a href="/@demo_user/post/R1"><time>Now</time></a><a href="/@other/post/Q1">Quoted post</a></section>')
         self.assertEqual(self.runner.candidates("replies"), ["/@demo_user/post/R1"])
 
+    def test_last_post_empty_profile(self):
+        self.page.goto(BASE + "/@demo_user")
+        self.page.set_content('<button>Edit profile</button><section role="region" aria-label="Column body"><p>Finish your profile</p><button>Post</button></section>')
+        self.assertTrue(self.runner.confirmed_empty_feed("posts"))
+        self.assertFalse(self.runner.confirmed_empty_feed("replies"))
+
     def test_url_scope(self):
         self.assertFalse(own_post("/@demo_user_other/post/X", "demo_user"))
         self.assertIsNone(post_path("https://evil.example/@demo_user/post/X"))
