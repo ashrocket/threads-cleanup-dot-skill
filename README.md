@@ -8,6 +8,10 @@ See the skill's setup and recovery instructions before running it. The script re
 
 The example browser tests use simulated Threads pages and make no real account changes.
 
+To give this to your dot, install the `threads-cleanup` skill from the ZIP in ChatGPT Skills, connect your computer if you want the script to run locally, and send a request like:
+
+> Use the Threads cleanup skill to clear my own @USERNAME posts, replies, and saved items. Keep my account. I authorize those deletions and unsaves. Verify each result, keep a resumable checkpoint, and tell me when every requested feed is empty. Ask me to sign in privately if needed.
+
 This is an independent community workflow, not an official Threads, TypeSafe, or OpenAI product.
 
 References: [OpenAI dots guide](https://learn.chatgpt.com/docs/dots), [OpenAI skill sharing](https://help.openai.com/en/articles/20001066-skills-in-chatgpt), [TypeSafe docs](https://docs.typesafe.ai/llms.txt).
