@@ -14,6 +14,8 @@ To give this to your dot, install the `threads-cleanup` skill from the ZIP in Ch
 
 > Use the Threads cleanup skill to clear my own @USERNAME posts, replies, and saved items. Keep my account. I authorize those deletions and unsaves. Verify each result, keep a resumable checkpoint, and tell me when every requested feed is empty. Ask me to sign in privately if needed.
 
+The skill requires explicit invocation; merely mentioning Threads will not start a cleanup. Its default prompt previews first and requires the owner to name the deletion scope before execution.
+
 This is an independent community workflow, not an official Threads, TypeSafe, or OpenAI product.
 
 References: [OpenAI dots guide](https://learn.chatgpt.com/docs/dots), [OpenAI skill sharing](https://help.openai.com/en/articles/20001066-skills-in-chatgpt), [TypeSafe docs](https://docs.typesafe.ai/llms.txt).

@@ -1,0 +1,7 @@
+interface:
+  display_name: Threads Cleanup
+  short_description: Clear your own Threads posts, replies, and saved items
+  default_prompt: Use the threads-cleanup skill to preview cleanup for my own Threads account. Verify the username and ask for my exact deletion scope before executing.
+
+policy:
+  allow_implicit_invocation: false
